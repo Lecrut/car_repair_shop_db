@@ -1,4 +1,4 @@
-CREATE TYPE Car_type AS OBJECT (
+CREATE or replace TYPE Car_type force AS OBJECT (
     CarID NUMBER,
     Brand VARCHAR2(50),
     Model VARCHAR2(50),

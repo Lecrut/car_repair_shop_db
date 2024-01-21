@@ -1,4 +1,4 @@
-CREATE TYPE Owner_type AS OBJECT (
+CREATE or replace TYPE Owner_type force AS OBJECT (
     OwnerID NUMBER,
     Name VARCHAR2(100),
     Surname VARCHAR2(100),

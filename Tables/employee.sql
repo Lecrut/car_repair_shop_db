@@ -1,4 +1,4 @@
-CREATE TYPE Employee_type AS OBJECT (
+CREATE or replace TYPE Employee_type force AS OBJECT (
     EmployeeID NUMBER,
     First_name VARCHAR2(100),
     Last_name VARCHAR2(100),
