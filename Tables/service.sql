@@ -4,6 +4,6 @@ CREATE TYPE Service AS OBJECT (
     ID NUMBER,
     tasks TasksArray,
     employee REF Employees,
-    position REF Employees,
+    position NUMBER,
     hour DATE
 );
