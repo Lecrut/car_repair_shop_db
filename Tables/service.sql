@@ -1,9 +1,11 @@
-CREATE TYPE TasksArray AS VARRAY(10) OF Task;
+CREATE TYPE TasksArray_type AS VARRAY(10) OF TASK_TYPE;
 
-CREATE TYPE Service AS OBJECT (
-    ID NUMBER,
-    tasks TasksArray,
+CREATE TYPE Service_type AS OBJECT (
+    ServiceID NUMBER,
+    tasks TasksArray_type,
     employee REF Employees,
+    owner REF OWNER_TYPE,
+    car REF CAR_TYPE,
     position NUMBER,
     hour DATE
 );

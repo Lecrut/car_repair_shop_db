@@ -1,5 +1,5 @@
-CREATE TYPE Employees AS OBJECT (
-    ID NUMBER,
+CREATE TYPE Employee_type AS OBJECT (
+    EmployeeID NUMBER,
     First_name VARCHAR2(100),
     Last_name VARCHAR2(100),
     Salary NUMBER,
