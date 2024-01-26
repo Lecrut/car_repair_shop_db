@@ -9,3 +9,28 @@ INSERT INTO TasksTable VALUES (Task_type(8, 'Transmission Flush', 300.0, 3.5));
 COMMIT;
 
 select * from TasksTable
+
+
+
+DECLARE
+    v_first_name VARCHAR2(100) := 'Jan';
+    v_last_name VARCHAR2(100) := 'Kowalski';
+    v_salary NUMBER := 5000;
+    v_professional_degree VARCHAR2(50) := 'Inżynier';
+    v_employment_date DATE := TO_DATE('2022-01-01', 'YYYY-MM-DD');
+BEGIN
+    EmployeesPackage.AddEmployee(v_first_name, v_last_name, v_salary, v_professional_degree, v_employment_date);
+END;
+
+select * from EMPLOYEESTABLE;
+
+DECLARE
+    v_name VARCHAR2(100) := 'Jan';
+    v_surname VARCHAR2(100) := 'Kowalski';
+    v_phone VARCHAR2(15) := '123456789';
+BEGIN
+    OWNERPACKAGE.AddOwner(v_name, v_surname, v_phone);
+END;
+
+select * from CLIENTTABLE;
+

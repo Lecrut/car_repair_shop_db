@@ -9,3 +9,5 @@ CREATE TABLE ClientTable OF Owner_type (PRIMARY KEY (OwnerID));
 CREATE TABLE CarTable OF Car_type (PRIMARY KEY (CarID));
 
 CREATE TABLE ServiceTable OF Service_type (PRIMARY KEY (ServiceID));
+
+commit;
