@@ -1,5 +1,3 @@
-CREATE OR REPLACE TYPE EmployeesTable_type AS TABLE OF Employee_type;
-
 CREATE OR REPLACE PACKAGE EmployeesPackage AS
     PROCEDURE ShowEmployeesList;
     PROCEDURE AddEmployee(
@@ -15,22 +13,20 @@ END EmployeesPackage;
 CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
 
     PROCEDURE ShowEmployeesList IS
-        v_employees EmployeesTable_type;
+        employee_count NUMBER;
     BEGIN
-        SELECT Employee_type(EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date)
-        BULK COLLECT INTO v_employees
-        FROM EmployeesTable;
+        SELECT COUNT (*) INTO employee_count FROM EmployeesTable;
 
-        IF v_employees.COUNT = 0 THEN
+        IF employee_count = 0 THEN
             DBMS_OUTPUT.PUT_LINE('Brak pracowników.');
         ELSE
-            FOR i IN 1..v_employees.COUNT LOOP
-                DBMS_OUTPUT.PUT_LINE('EmployeeID: ' || v_employees(i).EmployeeID);
-                DBMS_OUTPUT.PUT_LINE('First_name: ' || v_employees(i).First_name);
-                DBMS_OUTPUT.PUT_LINE('Last_name: ' || v_employees(i).Last_name);
-                DBMS_OUTPUT.PUT_LINE('Salary: ' || v_employees(i).Salary);
-                DBMS_OUTPUT.PUT_LINE('Professional_degree: ' || v_employees(i).Professional_degree);
-                DBMS_OUTPUT.PUT_LINE('Employment_date: ' || v_employees(i).Employment_date);
+            FOR r IN (SELECT EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date FROM EmployeesTable) LOOP
+                DBMS_OUTPUT.PUT_LINE('EmployeeID: ' || r.EmployeeID);
+                DBMS_OUTPUT.PUT_LINE('First_name: ' || r.First_name);
+                DBMS_OUTPUT.PUT_LINE('Last_name: ' || r.Last_name);
+                DBMS_OUTPUT.PUT_LINE('Salary: ' || r.Salary);
+                DBMS_OUTPUT.PUT_LINE('Professional_degree: ' || r.Professional_degree);
+                DBMS_OUTPUT.PUT_LINE('Employment_date: ' || r.Employment_date);
                 DBMS_OUTPUT.PUT_LINE('---------------------');
             END LOOP;
         END IF;
@@ -62,4 +58,4 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
 
 END EmployeesPackage;
 
-    commit
+commit;
