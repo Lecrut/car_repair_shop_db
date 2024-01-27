@@ -8,7 +8,7 @@ INSERT INTO TasksTable VALUES (Task_type(7, 'Coolant Flush', 120.0, 1.5));
 INSERT INTO TasksTable VALUES (Task_type(8, 'Transmission Flush', 300.0, 3.5));
 COMMIT;
 
-select * from TasksTable
+select * from TasksTable;
 
 
 DECLARE
