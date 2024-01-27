@@ -10,6 +10,11 @@ COMMIT;
 
 select * from TasksTable;
 
+INSERT INTO WORKSHOPTABLE VALUES (Workshop(8, 18, 2));
+commit;
+
+select * from WORKSHOPTABLE;
+
 
 DECLARE
     v_first_name VARCHAR2(100) := 'Jan';

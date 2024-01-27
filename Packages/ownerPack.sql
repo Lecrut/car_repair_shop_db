@@ -25,6 +25,7 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
     end ShowAllOwners;
 
     PROCEDURE ShowOwnerByPhone(phone_number IN VARCHAR2) AS
+--         todo: sprawdzic czy ten kursor jest potrzebny
         CURSOR c IS SELECT OwnerID, Name, Surname, Phone FROM ClientTable;
         cnt NUMBER;
     Begin
