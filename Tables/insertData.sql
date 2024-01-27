@@ -33,3 +33,16 @@ END;
 
 select * from CLIENTTABLE;
 
+DECLARE
+    v_Brand VARCHAR2(50) := 'Toyota';
+    v_Model VARCHAR2(50) := 'Corolla';
+    v_Year_of_production NUMBER := 2010;
+    v_Registration_number VARCHAR2(15) := 'ABC 123';
+    v_Mileage NUMBER := 2300;
+    v_VIN VARCHAR2(20) := '1234567890';
+BEGIN
+    CARPACKAGE.AddCar(v_Brand, v_Model, v_Year_of_production, v_Registration_number, v_Mileage, v_VIN);
+END;
+
+select * from CARTABLE;
+
