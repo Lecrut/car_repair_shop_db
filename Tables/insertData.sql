@@ -11,13 +11,12 @@ COMMIT;
 select * from TasksTable
 
 
-
 DECLARE
     v_first_name VARCHAR2(100) := 'Jan';
     v_last_name VARCHAR2(100) := 'Kowalski';
     v_salary NUMBER := 5000;
     v_professional_degree VARCHAR2(50) := 'Inżynier';
-    v_employment_date DATE := TO_DATE('2022-01-01', 'YYYY-MM-DD');
+    v_employment_date DATE := TO_DATE('2024-01-01', 'YYYY-MM-DD');
 BEGIN
     EmployeesPackage.AddEmployee(v_first_name, v_last_name, v_salary, v_professional_degree, v_employment_date);
 END;

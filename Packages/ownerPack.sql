@@ -44,12 +44,22 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
         p_phone VARCHAR2
     ) IS
         next_id NUMBER;
+        phone_exists NUMBER;
+        phone_exception EXCEPTION;
     Begin
+        SELECT COUNT(*) INTO phone_exists FROM ClientTable WHERE phone = p_phone;
+        IF phone_exists > 0 THEN
+            RAISE phone_exception;
+        END IF;
         SELECT COUNT(*) INTO next_id FROM ClientTable;
         next_id := next_id + 1;
         INSERT INTO CLIENTTABLE VALUES (OWNER_TYPE(next_id, p_name, p_surname, p_phone));
         COMMIT;
         DBMS_OUTPUT.PUT_LINE('Dodano nowego klienta ' || p_name || ' ' || p_surname || ' tel. ' || p_phone || ' pod id ' || next_id || '.');
+    EXCEPTION
+        WHEN phone_exception THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Klient z takim numerem telefonu już istnieje.');
     end AddOwner;
+
 
 END OwnerPackage;

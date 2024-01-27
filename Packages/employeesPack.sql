@@ -43,18 +43,22 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
         p_professional_degree VARCHAR2,
         p_employment_date DATE
     ) IS
-        v_employee Employee_type;
         next_id NUMBER;
+        invalid_data_exception EXCEPTION;
     BEGIN
-        IF v_employee.Employment_date > SYSDATE OR v_employee.Salary < 0 THEN
-            DBMS_OUTPUT.PUT_LINE('Niepoprawne dane pracownika.');
+        IF p_employment_date > SYSDATE OR p_salary < 0 THEN
+            RAISE invalid_data_exception;
         ELSE
             SELECT Employee_sequence.NEXTVAL INTO next_id FROM dual;
             INSERT INTO EmployeesTable VALUES (Employee_type(next_id, p_first_name, p_last_name, p_salary, p_professional_degree, p_employment_date));
             COMMIT;
             DBMS_OUTPUT.PUT_LINE('Dodano pracownika ' || p_first_name || ' ' || p_last_name || ' pod id ' || next_id || '.');
         END IF;
+    EXCEPTION
+        WHEN invalid_data_exception THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Niepoprawne dane pracownika.');
     END AddEmployee;
+
 
 END EmployeesPackage;
 
