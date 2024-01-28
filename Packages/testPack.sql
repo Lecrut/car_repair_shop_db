@@ -36,7 +36,7 @@ BEGIN
     dbms_output.put_line('OwnerID: ' || client_obj.OwnerID || ', Name: ' || client_obj.Name || ', Surname: ' || client_obj.Surname || ', Phone: ' || client_obj.Phone);
   ELSE
     -- Jeśli funkcja zwróciła NULL, wypisujemy komunikat
-    dbms_output.put_line('Brak klientów');
+    dbms_output.put_line('No clients founded');
   END IF;
 END;
 

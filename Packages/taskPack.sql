@@ -39,7 +39,7 @@ CREATE OR REPLACE PACKAGE BODY TasksPackage AS
         RETURN tasks;
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
-            RAISE_APPLICATION_ERROR(-20001, 'Nie znaleziono danego taska');
+            RAISE_APPLICATION_ERROR(-20001, 'Task not found');
     END createTasksArray;
 
 END TasksPackage;

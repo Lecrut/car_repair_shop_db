@@ -17,7 +17,7 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
     Begin
          SELECT COUNT(*) INTO cnt FROM ClientTable;
         IF cnt = 0 THEN
-            dbms_output.put_line('Brak klientów');
+            dbms_output.put_line('No clients founded');
         ELSE
             FOR r IN (SELECT DISTINCT OwnerID, Name, Surname, Phone FROM ClientTable) LOOP
                 dbms_output.put_line('OwnerID: ' || r.OwnerID || ', Name: ' || r.Name || ', Surname: ' || r.Surname || ', Phone: ' || r.Phone);
@@ -30,7 +30,7 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
     Begin
         SELECT COUNT(*) INTO cnt FROM ClientTable WHERE Phone = phone_number;
         IF cnt = 0 THEN
-            dbms_output.put_line('Brak klientów');
+            dbms_output.put_line('No clients founded');
         ELSE
             FOR r IN (SELECT DISTINCT OwnerID, Name, Surname, Phone FROM ClientTable WHERE Phone = phone_number) LOOP
                 dbms_output.put_line('OwnerID: ' || r.OwnerID || ', Name: ' || r.Name || ', Surname: ' || r.Surname || ', Phone: ' || r.Phone);
@@ -55,10 +55,10 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
         next_id := next_id + 1;
         INSERT INTO CLIENTTABLE VALUES (OWNER_TYPE(next_id, p_name, p_surname, p_phone));
         COMMIT;
-        DBMS_OUTPUT.PUT_LINE('Dodano nowego klienta ' || p_name || ' ' || p_surname || ' tel. ' || p_phone || ' pod id ' || next_id || '.');
+        DBMS_OUTPUT.PUT_LINE('Added new client ' || p_name || ' ' || p_surname || ' tel. ' || p_phone || ' with ID ' || next_id || '.');
     EXCEPTION
         WHEN phone_exception THEN
-            RAISE_APPLICATION_ERROR(-20001, 'Klient z takim numerem telefonu już istnieje.');
+            RAISE_APPLICATION_ERROR(-20001, 'Client with this phone number already exists');
     end AddOwner;
 
     FUNCTION GetOwnerRefByPhone(phone_number IN VARCHAR2) RETURN REF OWNER_TYPE AS

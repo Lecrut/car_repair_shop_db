@@ -26,7 +26,7 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
         SELECT COUNT (*) INTO employee_count FROM EmployeesTable;
 
         IF employee_count = 0 THEN
-            DBMS_OUTPUT.PUT_LINE('Brak pracowników.');
+            DBMS_OUTPUT.PUT_LINE('No employees founded.');
         ELSE
             OPEN emp_cursor FOR
                 SELECT EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date FROM EmployeesTable;
@@ -65,11 +65,11 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
             SELECT Employee_sequence.NEXTVAL INTO next_id FROM dual;
             INSERT INTO EmployeesTable VALUES (Employee_type(next_id, p_first_name, p_last_name, p_salary, p_professional_degree, p_employment_date));
             COMMIT;
-            DBMS_OUTPUT.PUT_LINE('Dodano pracownika ' || p_first_name || ' ' || p_last_name || ' pod id ' || next_id || '.');
+            DBMS_OUTPUT.PUT_LINE('Added employee ' || p_first_name || ' ' || p_last_name || ' with ID ' || next_id || '.');
         END IF;
     EXCEPTION
         WHEN invalid_data_exception THEN
-            RAISE_APPLICATION_ERROR(-20002, 'Niepoprawne dane pracownika.');
+            RAISE_APPLICATION_ERROR(-20002, 'Incorrect employee data.');
     END AddEmployee;
 
     FUNCTION GetEmployeeRefById(employee_id IN NUMBER) RETURN REF EMPLOYEE_TYPE AS
