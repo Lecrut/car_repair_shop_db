@@ -1,6 +1,7 @@
 CREATE OR REPLACE PACKAGE ServicePackage AS
     PROCEDURE PrintServiceDataByDate(service_date DATE);
     PROCEDURE PrintFreeHours(service_date DATE);
+    PROCEDURE PrintClientHistory(phoneNumber VARCHAR2);
     PROCEDURE AddService(
         car_vin VARCHAR2,
         employee_id NUMBER,
@@ -30,6 +31,80 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         return true;
     end IsTimeAllowed;
 
+    PROCEDURE PrintClientHistory(phoneNumber VARCHAR2) IS
+        CURSOR service_cursor IS
+            SELECT *
+            FROM SERVICETABLE
+            ORDER BY HOUR;
+        service_record service_cursor%ROWTYPE;
+        service        SERVICE_TYPE;
+        record_found   BOOLEAN;
+        emp_ref        REF EMPLOYEE_TYPE;
+        emp            EMPLOYEE_TYPE;
+        car_ref        REF CAR_TYPE;
+        car            CAR_TYPE;
+        owner_ref      REF OWNER_TYPE;
+        owner          OWNER_TYPE;
+        task           TASK_TYPE;
+        task_str       VARCHAR(1000) := ' ';
+    BEGIN
+        OPEN service_cursor;
+        dbms_output.put_line('History for owner: ' || owner.NAME || ' ' || owner.SURNAME || ', phone number: ' ||
+                             owner.PHONE);
+
+        LOOP
+            FETCH service_cursor INTO service_record;
+            EXIT WHEN service_cursor%NOTFOUND;
+
+            owner_ref := service_record.OWNER;
+            SELECT DEREF(owner_ref) INTO owner FROM dual;
+
+            IF owner.PHONE <> phoneNumber THEN
+                continue;
+            END IF;
+
+            record_found := TRUE;
+
+            car_ref := service_record.CAR;
+            SELECT DEREF(car_ref) INTO car FROM dual;
+
+            owner_ref := service_record.OWNER;
+            SELECT DEREF(owner_ref) INTO owner FROM dual;
+
+
+            emp_ref := service_record.EMPLOYEE;
+            SELECT DEREF(emp_ref) INTO emp FROM dual;
+
+            service := SERVICE_TYPE(service_record.ServiceID, service_record.tasks, service_record.employee,
+                                    service_record.owner, service_record.car, service_record.position,
+                                    service_record.hour, service_record.ENDTIME);
+
+
+            FOR i IN 1..service_record.tasks.COUNT
+                LOOP
+                    task := service_record.tasks(i);
+                    task_str := task_str || ' | ' || task.NAME;
+                END LOOP;
+
+
+            dbms_output.put_line('----------------------');
+            dbms_output.put_line('Date: ' || TO_CHAR(service_record.hour, 'DD-MM-YYYY HH24:MI'));
+            dbms_output.put_line('Tasks:' || task_str || ' | ');
+            dbms_output.put_line('Employee: ' || emp.First_name || ' ' || emp.Last_name || ', ' ||
+                                 emp.Professional_degree);
+
+            dbms_output.put_line('Car: ' || car.BRAND || ' ' || car.MODEL || ' ' ||
+                                 car.YEAR_OF_PRODUCTION || ', mileage: ' || car.MILEAGE || ', vin: ' || car.VIN);
+
+            dbms_output.put_line('----------------------');
+        END LOOP;
+
+        CLOSE service_cursor;
+
+        IF NOT record_found THEN
+            dbms_output.put_line('No history for this owner.');
+        END IF;
+    END PrintClientHistory;
 
     PROCEDURE PrintServiceDataByDate(service_date DATE) IS
         CURSOR service_cursor IS
@@ -94,7 +169,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
                                  owner.PHONE);
 
             dbms_output.put_line('Station: ' || service_record.position);
-            dbms_output.put_line('Hour: ' || TO_CHAR(service_record.hour, 'HH24'));
+            dbms_output.put_line('Hour: ' || TO_CHAR(service_record.hour, 'HH24:MI'));
             dbms_output.put_line('----------------------');
         END LOOP;
 
