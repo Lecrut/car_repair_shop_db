@@ -46,8 +46,7 @@ CREATE OR REPLACE PACKAGE BODY CarPackage AS
     ) IS
         next_id NUMBER;
     BEGIN
-        SELECT COUNT(*) INTO next_id FROM CarTable;
-        next_id := next_id + 1;
+        next_id := CAR_SEQUENCE.NEXTVAL;
         INSERT INTO CarTable
         VALUES (Car_type(next_id, p_Brand, p_Model, p_Year_of_production, p_Registration_number, p_Mileage, p_VIN));
         COMMIT;

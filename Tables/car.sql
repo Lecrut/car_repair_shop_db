@@ -1,3 +1,5 @@
+CREATE SEQUENCE Car_sequence START WITH 1 INCREMENT BY 1;
+
 CREATE or replace TYPE Car_type force AS OBJECT (
     CarID NUMBER,
     Brand VARCHAR2(50),
