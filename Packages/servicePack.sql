@@ -9,21 +9,32 @@ CREATE OR REPLACE PACKAGE ServicePackage AS
         tasks_ids SYS.ODCINUMBERLIST,
         position_number NUMBER
     );
+    FUNCTION IsTimeAllowed (position_number NUMBER, v_hour DATE) RETURN BOOLEAN;
 END ServicePackage;
 
 
 CREATE OR REPLACE PACKAGE BODY ServicePackage AS
+
+    FUNCTION IsTimeAllowed (position_number NUMBER, v_hour DATE) RETURN BOOLEAN IS
+        counter number;
+    Begin
+        SELECT COUNT(*) into counter FROM SERVICETABLE WHERE v_hour >= HOUR AND v_hour < ENDTIME and POSITION = position_number;
+        IF counter > 0 then
+            return false;
+        end if;
+        return true;
+    end IsTimeAllowed;
 
     PROCEDURE PrintServiceDataByDate (service_date DATE) IS
         cnt NUMBER;
     Begin
         SELECT COUNT(*) INTO cnt FROM SERVICETABLE WHERE hour >= service_date AND hour < service_date + 1;
         IF cnt = 0 THEN
-            dbms_output.put_line('Brak usług dla daty ' || service_date);
+            dbms_output.put_line('No services for date ' || service_date);
         ELSE
             FOR r IN (SELECT ServiceID, tasks, deref(employee), deref(owner), deref(car), position, hour FROM SERVICETABLE WHERE hour >= service_date AND hour < service_date + 1) LOOP
               dbms_output.put_line('ServiceID: ' || r.ServiceID);
-              dbms_output.put_line('Tasks: ' || r.tasks.COUNT);
+              dbms_output.put_line('Tasks number: ' || r.tasks.COUNT);
 --               todo: usunąć referencję i to wypisac poprawnie
 --               dbms_output.put_line('Employee: ' || r.emp.NAME);
 --               dbms_output.put_line('Owner: ' || r.owner);
@@ -40,8 +51,8 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         v_hour DATE;
         start_hour NUMBER;
         end_hour NUMBER;
-        v_count NUMBER;
         invalid_data_exception EXCEPTION;
+        v_available_hours VARCHAR2(100);
     BEGIN
         IF service_date < SYSDATE THEN
             RAISE invalid_data_exception;
@@ -51,19 +62,20 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         select CLOSING_HOUR into  end_hour from WORKSHOPTABLE;
         SELECT NUMBER_OF_STATIONS INTO v_positions FROM WORKSHOPTABLE;
         v_hour := service_date + start_hour/24;
-        WHILE v_hour < service_date + end_hour/24 LOOP
-            dbms_output.put_line('Godzina: '  || TO_CHAR(v_hour, 'HH24:MI'));
-            FOR i IN 1..v_positions LOOP
-                SELECT COUNT(*) INTO v_count FROM SERVICETABLE WHERE hour = v_hour AND position = i;
-                IF v_count = 0 THEN
-                  dbms_output.put_line('Wolne stanowisko: ' || i);
+        FOR i IN 1..v_positions LOOP
+            v_available_hours := 'Position ' || i || ' free hours: ';
+            WHILE v_hour < service_date + end_hour/24 LOOP
+                IF ISTIMEALLOWED(i, v_hour) THEN
+                    v_available_hours := v_available_hours || TO_CHAR(v_hour, 'HH24') || ' ';
                 END IF;
+                v_hour := v_hour + 1/24;
             END LOOP;
-            v_hour := v_hour + 1/24;
+            dbms_output.put_line(v_available_hours);
+            v_hour := service_date + start_hour/24;
         END LOOP;
     EXCEPTION
         WHEN invalid_data_exception THEN
-            RAISE_APPLICATION_ERROR(-20002, 'Niepoprawna data.');
+            RAISE_APPLICATION_ERROR(-20002, 'Invalid date');
     END PrintFreeHours;
 
     PROCEDURE AddService(
@@ -82,28 +94,52 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         start_hour NUMBER;
         end_hour NUMBER;
         invalid_data_exception EXCEPTION;
+        service SERVICE_TYPE;
+        v_duration NUMBER;
+        temp_date DATE;
+        invalid_time_exception EXCEPTION;
     BEGIN
         IF service_date < SYSDATE THEN
             RAISE invalid_data_exception;
         END IF;
 
         select opening_hour into start_hour from WORKSHOPTABLE;
-        select CLOSING_HOUR into  end_hour from WORKSHOPTABLE;
+        select CLOSING_HOUR into end_hour from WORKSHOPTABLE;
 
-
-
---         todo: walidacja
         car_ref := CARPACKAGE.GETCARREFBYVIN(car_vin);
         employee_ref := EMPLOYEESPACKAGE.GETEMPLOYEEREFBYID(employee_id);
         owner_ref := OWNERPACKAGE.GETOWNERREFBYPHONE(owner_phone);
         tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
 
         select SERVICE_SEQUENCE.nextval into next_id from dual;
-        insert into SERVICETABLE VALUES (SERVICE_TYPE(next_id, tasks_list, employee_ref, owner_ref, car_ref, position_number, service_date));
+        service := SERVICE_TYPE(next_id, tasks_list, employee_ref, owner_ref, car_ref, position_number, service_date, service_date);
+
+        IF TO_CHAR(service_date, 'HH24') < start_hour THEN
+            RAISE invalid_data_exception;
+        END IF;
+
+        v_duration := CEIL(service.DISPLAYTIMEINHOURS());
+
+        IF TO_CHAR(service_date, 'HH24') + v_duration > end_hour THEN
+            RAISE invalid_data_exception;
+        END IF;
+
+        temp_date := service_date;
+        WHILE temp_date < (service_date+(v_duration/24)) LOOP
+            IF ISTIMEALLOWED(position_number, temp_date) = FALSE THEN
+                raise invalid_time_exception;
+            end if;
+            temp_date := temp_date + 1/24;
+        end loop;
+
+        service := SERVICE_TYPE(next_id, tasks_list, employee_ref, owner_ref, car_ref, position_number, service_date, (service_date+(v_duration/24)));
+        insert into SERVICETABLE VALUES (service);
         COMMIT;
     EXCEPTION
         WHEN invalid_data_exception THEN
-            RAISE_APPLICATION_ERROR(-20002, 'Niepoprawna data.');
+            RAISE_APPLICATION_ERROR(-20002, 'Invalid repair date.');
+        WHEN invalid_time_exception THEN
+            raise_application_error(-20005, 'The position is already taken.');
     END AddService;
 
 END ServicePackage;
