@@ -7,6 +7,7 @@ CREATE OR REPLACE PACKAGE EmployeesPackage AS
         p_professional_degree VARCHAR2,
         p_employment_date DATE
     );
+    FUNCTION GetEmployeeRefById(employee_id IN NUMBER) RETURN REF EMPLOYEE_TYPE;
 END EmployeesPackage;
 
 
@@ -55,6 +56,15 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
             RAISE_APPLICATION_ERROR(-20002, 'Niepoprawne dane pracownika.');
     END AddEmployee;
 
+    FUNCTION GetEmployeeRefById(employee_id IN NUMBER) RETURN REF EMPLOYEE_TYPE AS
+        employee_ref REF EMPLOYEE_TYPE;
+    BEGIN
+        SELECT REF(e) INTO employee_ref FROM EMPLOYEESTABLE e WHERE e.EMPLOYEEID = employee_id;
+        return employee_ref;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN NULL;
+    END GetEmployeeRefById;
 
 END EmployeesPackage;
 

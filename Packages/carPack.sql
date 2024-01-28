@@ -8,6 +8,7 @@ CREATE OR REPLACE PACKAGE CarPackage AS
         p_Mileage NUMBER,
         p_VIN VARCHAR2
     );
+    FUNCTION GetCarRefByVin(vin_number IN VARCHAR2) RETURN REF CAR_TYPE;
 END CarPackage;
 
 CREATE OR REPLACE PACKAGE BODY CarPackage AS
@@ -49,5 +50,15 @@ CREATE OR REPLACE PACKAGE BODY CarPackage AS
         COMMIT;
         DBMS_OUTPUT.PUT_LINE('Dodano samochód ' || p_Brand || ' ' || p_Model || ' pod id ' || next_id || '.');
     END AddCar;
+
+    FUNCTION GetCarRefByVin(vin_number IN VARCHAR2) RETURN REF CAR_TYPE AS
+        car_ref REF CAR_TYPE;
+    BEGIN
+        SELECT REF(c) INTO car_ref FROM CARTABLE c WHERE c.VIN = vin_number;
+        RETURN car_ref;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+    END GetCarRefByVin;
 
 end CarPackage;

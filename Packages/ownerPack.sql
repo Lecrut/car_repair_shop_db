@@ -6,6 +6,7 @@ CREATE OR REPLACE PACKAGE OwnerPackage AS
         p_surname VARCHAR2,
         p_phone VARCHAR2
     );
+    FUNCTION GetOwnerRefByPhone(phone_number IN VARCHAR2) RETURN REF OWNER_TYPE;
 END OwnerPackage;
 
 
@@ -25,8 +26,6 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
     end ShowAllOwners;
 
     PROCEDURE ShowOwnerByPhone(phone_number IN VARCHAR2) AS
---         todo: sprawdzic czy ten kursor jest potrzebny
-        CURSOR c IS SELECT OwnerID, Name, Surname, Phone FROM ClientTable;
         cnt NUMBER;
     Begin
         SELECT COUNT(*) INTO cnt FROM ClientTable WHERE Phone = phone_number;
@@ -62,5 +61,14 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
             RAISE_APPLICATION_ERROR(-20001, 'Klient z takim numerem telefonu już istnieje.');
     end AddOwner;
 
+    FUNCTION GetOwnerRefByPhone(phone_number IN VARCHAR2) RETURN REF OWNER_TYPE AS
+      client_ref REF OWNER_TYPE;
+    BEGIN
+      SELECT REF(c) INTO client_ref FROM ClientTable c WHERE c.Phone = phone_number;
+      RETURN client_ref;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+    END GetOwnerRefByPhone;
 
 END OwnerPackage;
