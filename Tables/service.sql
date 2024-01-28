@@ -10,6 +10,7 @@ CREATE or replace TYPE Service_type force AS OBJECT (
     car REF CAR_TYPE,
     position NUMBER,
     hour DATE,
+    endTime DATE,
 
     MEMBER FUNCTION displayTimeInHours RETURN NUMBER
 );
