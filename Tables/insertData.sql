@@ -49,5 +49,16 @@ BEGIN
     CARPACKAGE.AddCar(v_Brand, v_Model, v_Year_of_production, v_Registration_number, v_Mileage, v_VIN);
 END;
 
+DECLARE
+    v_Brand VARCHAR2(50) := 'Seat';
+    v_Model VARCHAR2(50) := 'Ibiza';
+    v_Year_of_production NUMBER := 2006;
+    v_Registration_number VARCHAR2(15) := 'DEF 123';
+    v_Mileage NUMBER := 230000;
+    v_VIN VARCHAR2(20) := 'gf34567890';
+BEGIN
+    CARPACKAGE.AddCar(v_Brand, v_Model, v_Year_of_production, v_Registration_number, v_Mileage, v_VIN);
+END;
+
 select * from CARTABLE;
 
