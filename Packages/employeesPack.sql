@@ -15,23 +15,39 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
 
     PROCEDURE ShowEmployeesList IS
         employee_count NUMBER;
+        emp_cursor SYS_REFCURSOR;
+        EmployeeID EmployeesTable.EmployeeID%TYPE;
+        First_name EmployeesTable.First_name%TYPE;
+        Last_name EmployeesTable.Last_name%TYPE;
+        Salary EmployeesTable.Salary%TYPE;
+        Professional_degree EmployeesTable.Professional_degree%TYPE;
+        Employment_date EmployeesTable.Employment_date%TYPE;
     BEGIN
         SELECT COUNT (*) INTO employee_count FROM EmployeesTable;
 
         IF employee_count = 0 THEN
             DBMS_OUTPUT.PUT_LINE('Brak pracowników.');
         ELSE
-            FOR r IN (SELECT EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date FROM EmployeesTable) LOOP
-                DBMS_OUTPUT.PUT_LINE('EmployeeID: ' || r.EmployeeID);
-                DBMS_OUTPUT.PUT_LINE('First_name: ' || r.First_name);
-                DBMS_OUTPUT.PUT_LINE('Last_name: ' || r.Last_name);
-                DBMS_OUTPUT.PUT_LINE('Salary: ' || r.Salary);
-                DBMS_OUTPUT.PUT_LINE('Professional_degree: ' || r.Professional_degree);
-                DBMS_OUTPUT.PUT_LINE('Employment_date: ' || r.Employment_date);
+            OPEN emp_cursor FOR
+                SELECT EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date FROM EmployeesTable;
+
+            LOOP
+                FETCH emp_cursor INTO EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date;
+                EXIT WHEN emp_cursor%NOTFOUND;
+
+                DBMS_OUTPUT.PUT_LINE('EmployeeID: ' || EmployeeID);
+                DBMS_OUTPUT.PUT_LINE('First_name: ' || First_name);
+                DBMS_OUTPUT.PUT_LINE('Last_name: ' || Last_name);
+                DBMS_OUTPUT.PUT_LINE('Salary: ' || Salary);
+                DBMS_OUTPUT.PUT_LINE('Professional_degree: ' || Professional_degree);
+                DBMS_OUTPUT.PUT_LINE('Employment_date: ' || Employment_date);
                 DBMS_OUTPUT.PUT_LINE('---------------------');
             END LOOP;
+
+            CLOSE emp_cursor;
         END IF;
     END ShowEmployeesList;
+
 
     PROCEDURE AddEmployee(
         p_first_name VARCHAR2,
