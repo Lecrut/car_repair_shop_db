@@ -1,6 +1,14 @@
 CREATE OR REPLACE PACKAGE ServicePackage AS
     PROCEDURE PrintServiceDataByDate (service_date DATE);
     PROCEDURE PrintFreeHours (service_date DATE);
+    PROCEDURE AddService(
+        car_vin VARCHAR2,
+        employee_id NUMBER,
+        owner_phone VARCHAR2,
+        service_date DATE,
+        tasks_ids SYS.ODCINUMBERLIST,
+        position_number NUMBER
+    );
 END ServicePackage;
 
 
@@ -13,10 +21,11 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         IF cnt = 0 THEN
             dbms_output.put_line('Brak usług dla daty ' || service_date);
         ELSE
-            FOR r IN (SELECT ServiceID, tasks, employee, owner, car, position, hour FROM SERVICETABLE WHERE hour >= service_date AND hour < service_date + 1) LOOP
+            FOR r IN (SELECT ServiceID, tasks, deref(employee), deref(owner), deref(car), position, hour FROM SERVICETABLE WHERE hour >= service_date AND hour < service_date + 1) LOOP
               dbms_output.put_line('ServiceID: ' || r.ServiceID);
               dbms_output.put_line('Tasks: ' || r.tasks.COUNT);
---               dbms_output.put_line('Employee: ' || r.employee);
+--               todo: usunąć referencję i to wypisac poprawnie
+--               dbms_output.put_line('Employee: ' || r.emp.NAME);
 --               dbms_output.put_line('Owner: ' || r.owner);
 --               dbms_output.put_line('Car: ' || r.car);
               dbms_output.put_line('Position: ' || r.position);
@@ -32,7 +41,12 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         start_hour NUMBER;
         end_hour NUMBER;
         v_count NUMBER;
+        invalid_data_exception EXCEPTION;
     BEGIN
+        IF service_date < SYSDATE THEN
+            RAISE invalid_data_exception;
+        END IF;
+
         select opening_hour into start_hour from WORKSHOPTABLE;
         select CLOSING_HOUR into  end_hour from WORKSHOPTABLE;
         SELECT NUMBER_OF_STATIONS INTO v_positions FROM WORKSHOPTABLE;
@@ -47,56 +61,50 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             END LOOP;
             v_hour := v_hour + 1/24;
         END LOOP;
+    EXCEPTION
+        WHEN invalid_data_exception THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Niepoprawna data.');
     END PrintFreeHours;
 
---
---     CREATE OR REPLACE PROCEDURE get_car_ref (p_car_id INT) AS
---         v_car REF CAR_TYPE;
---     BEGIN
---         SELECT REF(c) INTO v_car FROM CARTABLE c WHERE CarID = p_car_id;
---         dbms_output.put_line('Referencja do samochodu: ' || v_car);
---     END;
+    PROCEDURE AddService(
+        car_vin VARCHAR2,
+        employee_id NUMBER,
+        owner_phone VARCHAR2,
+        service_date DATE,
+        tasks_ids SYS.ODCINUMBERLIST,
+        position_number NUMBER
+    ) AS
+        tasks_list TASKSARRAY_TYPE;
+        car_ref REF CAR_TYPE;
+        employee_ref REF EMPLOYEE_TYPE;
+        owner_ref REF OWNER_TYPE;
+        next_id NUMBER;
+        start_hour NUMBER;
+        end_hour NUMBER;
+        invalid_data_exception EXCEPTION;
+    BEGIN
+        IF service_date < SYSDATE THEN
+            RAISE invalid_data_exception;
+        END IF;
+
+        select opening_hour into start_hour from WORKSHOPTABLE;
+        select CLOSING_HOUR into  end_hour from WORKSHOPTABLE;
+
+
+
+--         todo: walidacja
+        car_ref := CARPACKAGE.GETCARREFBYVIN(car_vin);
+        employee_ref := EMPLOYEESPACKAGE.GETEMPLOYEEREFBYID(employee_id);
+        owner_ref := OWNERPACKAGE.GETOWNERREFBYPHONE(owner_phone);
+        tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
+
+        select SERVICE_SEQUENCE.nextval into next_id from dual;
+        insert into SERVICETABLE VALUES (SERVICE_TYPE(next_id, tasks_list, employee_ref, owner_ref, car_ref, position_number, service_date));
+        COMMIT;
+    EXCEPTION
+        WHEN invalid_data_exception THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Niepoprawna data.');
+    END AddService;
 
 END ServicePackage;
-
-
-
-
-
--- -- Tworzę procedurę, która dodaje dane do tabeli serviceTable
--- CREATE OR REPLACE PROCEDURE add_service (
---     p_serviceid IN NUMBER,
---     p_tasks IN TasksArray_type,
---     p_employee IN EMPLOYEE_TYPE,
---     p_owner IN OWNER_TYPE,
---     p_car IN CAR_TYPE,
---     p_position IN NUMBER,
---     p_hour IN DATE
--- ) AS
--- BEGIN
---   -- Używam klauzuli VALUES, aby dodać dane do tabeli serviceTable
---   INSERT INTO serviceTable VALUES (
---     p_serviceid,
---     p_tasks,
---     (SELECT REF(e) FROM employeeTable e WHERE e.employeeID = p_employee.employeeID),
---     (SELECT REF(o) FROM ownerTable o WHERE o.ownerID = p_owner.ownerID),
---     (SELECT REF(c) FROM carTable c WHERE c.carID = p_car.carID),
---     p_position,
---     p_hour
---   );
--- END;
--- /
---
--- -- Wywołuję procedurę z przykładowymi danymi
--- DECLARE
---   v_tasks TasksArray_type := TasksArray_type('Oil change', 'Tire rotation', 'Brake inspection');
---   v_employee EMPLOYEE_TYPE := EMPLOYEE_TYPE(1, 'Jan', 'Kowalski', 'Mechanic');
---   v_owner OWNER_TYPE := OWNER_TYPE(2, 'Anna', 'Nowak', '123-456-789');
---   v_car CAR_TYPE := CAR_TYPE(3, 'Toyota', 'Corolla', 2010, 'ABC-123', 100000, '1234567890');
---   v_position NUMBER := 1;
---   v_hour DATE := SYSDATE;
--- BEGIN
---   add_service(v_serviceid, v_tasks, v_employee, v_owner, v_car, v_position, v_hour);
--- END;
--- /
 
