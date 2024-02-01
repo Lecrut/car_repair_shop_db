@@ -615,11 +615,12 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
     END PrintClientHistory;
 
     PROCEDURE PrintServiceDataByDate(service_date DATE) IS
-        CURSOR service_cursor IS
+        cursor service_cursor(pos number) is
             SELECT *
             FROM SERVICETABLE
             WHERE hour >= service_date
-              AND hour < service_date + 1;
+              AND hour < service_date + 1
+              AND position = pos;
         service_record service_cursor%ROWTYPE;
         service        SERVICE_TYPE;
         record_found   BOOLEAN       := FALSE;
@@ -633,59 +634,68 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         task_str       VARCHAR(1000) := ' ';
         needed_time    NUMBER;
         cost           NUMBER;
+        all_stations   NUMBER;
     BEGIN
-        OPEN service_cursor;
+        SELECT NUMBER_OF_STATIONS INTO all_stations FROM WORKSHOPTABLE;
 
-        LOOP
-            FETCH service_cursor INTO service_record;
-            EXIT WHEN service_cursor%NOTFOUND;
+        FOR i IN 1..all_stations
+            LOOP
+                DBMS_OUTPUT.PUT_LINE('-----------------------------' || 'Station ' || i || '-----------------------------');
 
-            record_found := TRUE;
+                OPEN service_cursor(i);
 
-            emp_ref := service_record.EMPLOYEE;
-            SELECT DEREF(emp_ref) INTO emp FROM dual;
-
-            car_ref := service_record.CAR;
-            SELECT DEREF(car_ref) INTO car FROM dual;
-
-            owner_ref := service_record.OWNER;
-            SELECT DEREF(owner_ref) INTO owner FROM dual;
-
-            service := SERVICE_TYPE(service_record.ServiceID, service_record.tasks, service_record.employee,
-                                    service_record.owner, service_record.car, service_record.position,
-                                    service_record.hour, service_record.ENDTIME);
-
-            needed_time := service.displayTimeInHours();
-            cost := service.calculateCost();
-
-
-            FOR i IN 1..service_record.tasks.COUNT
                 LOOP
-                    task := service_record.tasks(i);
-                    task_str := task_str || ' | ' || task.NAME;
+                    FETCH service_cursor INTO service_record;
+                    EXIT WHEN service_cursor%NOTFOUND;
+
+                    record_found := TRUE;
+
+                    emp_ref := service_record.EMPLOYEE;
+                    SELECT DEREF(emp_ref) INTO emp FROM dual;
+
+                    car_ref := service_record.CAR;
+                    SELECT DEREF(car_ref) INTO car FROM dual;
+
+                    owner_ref := service_record.OWNER;
+                    SELECT DEREF(owner_ref) INTO owner FROM dual;
+
+                    service := SERVICE_TYPE(service_record.ServiceID, service_record.tasks, service_record.employee,
+                                            service_record.owner, service_record.car, service_record.position,
+                                            service_record.hour, service_record.ENDTIME);
+
+                    needed_time := service.displayTimeInHours();
+                    cost := service.calculateCost();
+
+
+                    FOR i IN 1..service_record.tasks.COUNT
+                        LOOP
+                            task := service_record.tasks(i);
+                            task_str := task_str || ' | ' || task.NAME;
+                        END LOOP;
+
+                    dbms_output.put_line('ServiceID: ' || service_record.ServiceID);
+                    dbms_output.put_line('Tasks number: ' || service_record.tasks.COUNT);
+                    dbms_output.put_line('Tasks:' || task_str || ' | ');
+                    dbms_output.put_line('Cost: ' || cost || ' PLN');
+                    dbms_output.put_line('Needed hours: ' || needed_time);
+
+                    dbms_output.put_line('Employee: ' || emp.First_name || ' ' || emp.Last_name || ', ' ||
+                                         emp.Professional_degree);
+
+                    dbms_output.put_line('Car: ' || car.BRAND || ' ' || car.MODEL || ' ' ||
+                                         car.YEAR_OF_PRODUCTION || ', mileage: ' || car.MILEAGE || ', vin: ' ||
+                                         car.VIN);
+
+                    dbms_output.put_line('Owner: ' || owner.NAME || ' ' || owner.SURNAME || ', phone number: ' ||
+                                         owner.PHONE);
+
+                    dbms_output.put_line('Station: ' || service_record.position);
+                    dbms_output.put_line('Hour: ' || TO_CHAR(service_record.hour, 'HH24:MI'));
+                    dbms_output.put_line('----------------------');
                 END LOOP;
 
-            dbms_output.put_line('ServiceID: ' || service_record.ServiceID);
-            dbms_output.put_line('Tasks number: ' || service_record.tasks.COUNT);
-            dbms_output.put_line('Tasks:' || task_str || ' | ');
-            dbms_output.put_line('Cost: ' || cost || ' PLN');
-            dbms_output.put_line('Needed hours: ' || needed_time);
-
-            dbms_output.put_line('Employee: ' || emp.First_name || ' ' || emp.Last_name || ', ' ||
-                                 emp.Professional_degree);
-
-            dbms_output.put_line('Car: ' || car.BRAND || ' ' || car.MODEL || ' ' ||
-                                 car.YEAR_OF_PRODUCTION || ', mileage: ' || car.MILEAGE || ', vin: ' || car.VIN);
-
-            dbms_output.put_line('Owner: ' || owner.NAME || ' ' || owner.SURNAME || ', phone number: ' ||
-                                 owner.PHONE);
-
-            dbms_output.put_line('Station: ' || service_record.position);
-            dbms_output.put_line('Hour: ' || TO_CHAR(service_record.hour, 'HH24:MI'));
-            dbms_output.put_line('----------------------');
-        END LOOP;
-
-        CLOSE service_cursor;
+                CLOSE service_cursor;
+            END LOOP;
 
         IF NOT record_found THEN
             dbms_output.put_line('No services for date ' || service_date);
