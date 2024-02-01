@@ -507,11 +507,133 @@ CREATE OR REPLACE PACKAGE ServicePackage AS
         tasks_ids SYS.ODCINUMBERLIST,
         position_number NUMBER
     );
+    PROCEDURE AddServiceForNearestDate(
+        car_vin VARCHAR2,
+        employee_id NUMBER,
+        owner_phone VARCHAR2,
+        tasks_ids SYS.ODCINUMBERLIST
+    );
     FUNCTION IsTimeAllowed(position_number NUMBER, v_hour DATE) RETURN BOOLEAN;
+    FUNCTION FindPositionAndDate(
+        from_date Date,
+        days_range NUMBER,
+        tasks TasksArray_type,
+        stations_count NUMBER,
+        starting_hour NUMBER,
+        closing_hour NUMBER,
+        needed_time NUMBER,
+        employee_ref REF EMPLOYEE_TYPE,
+        owner_ref REF OWNER_TYPE,
+        car_ref REF CAR_TYPE
+    )
+        RETURN SERVICE_TYPE;
+    FUNCTION calculateTimeOfTasksInHours(tasks TASKSARRAY_TYPE) RETURN NUMBER;
 END ServicePackage;
 /
 
 CREATE OR REPLACE PACKAGE BODY ServicePackage AS
+
+    FUNCTION calculateTimeOfTasksInHours(tasks TASKSARRAY_TYPE) RETURN NUMBER IS
+        v_result NUMBER := 0;
+        v_task   TASK_TYPE;
+    BEGIN
+        FOR i IN 1..tasks.COUNT
+            LOOP
+                v_task := tasks(i);
+                v_result := v_result + v_task.TIME_IN_HOURS;
+            END LOOP;
+
+        RETURN v_result;
+    END calculateTimeOfTasksInHours;
+
+    PROCEDURE AddServiceForNearestDate(
+        car_vin VARCHAR2,
+        employee_id NUMBER,
+        owner_phone VARCHAR2,
+        tasks_ids SYS.ODCINUMBERLIST
+    ) IS
+        start_hour   NUMBER;
+        end_hour     NUMBER;
+        stations     NUMBER;
+        car_ref      REF CAR_TYPE;
+        employee_ref REF EMPLOYEE_TYPE;
+        owner_ref    REF OWNER_TYPE;
+        tasks_list   TASKSARRAY_TYPE;
+        new_service  SERVICE_TYPE;
+    BEGIN
+        select opening_hour into start_hour from WORKSHOPTABLE;
+        select closing_hour into end_hour from WORKSHOPTABLE;
+        select number_of_stations into stations from WORKSHOPTABLE;
+
+        car_ref := CARPACKAGE.GETCARREFBYVIN(car_vin);
+        employee_ref := EMPLOYEESPACKAGE.GETEMPLOYEEREFBYID(employee_id);
+        owner_ref := OWNERPACKAGE.GETOWNERREFBYPHONE(owner_phone);
+        tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
+
+        new_service := FindPositionAndDate(SYSDATE, 5, tasks_list, stations, start_hour,
+                                           end_hour, calculateTimeOfTasksInHours(tasks_list), employee_ref, owner_ref,
+                                           car_ref);
+
+        DBMS_OUTPUT.PUT_LINE('Founded available service date: station ' || new_service.POSITION || ' ,start hour: ' ||
+                             to_char(new_service.HOUR, 'YYYY-MM-DD HH24') ||
+                             ', end hour: ' || to_char(new_service.ENDTIME, 'YYYY-MM-DD HH24'));
+        insert into SERVICETABLE VALUES (new_service);
+
+    END AddServiceForNearestDate;
+
+    FUNCTION FindPositionAndDate(
+        from_date Date,
+        days_range NUMBER,
+        tasks TasksArray_type,
+        stations_count NUMBER,
+        starting_hour NUMBER,
+        closing_hour NUMBER,
+        needed_time NUMBER,
+        employee_ref REF EMPLOYEE_TYPE,
+        owner_ref REF OWNER_TYPE,
+        car_ref REF CAR_TYPE
+    )
+        RETURN SERVICE_TYPE IS
+
+        current_hour      DATE;
+        closing_hour_date DATE;
+        current_date      DATE := from_date;
+        hour_counter      NUMBER;
+    Begin
+
+        FOR day IN 1..days_range
+            LOOP
+                FOR station in 1..stations_count
+                    LOOP
+                        --                     TODO zmienic inicjalizacje
+                        current_hour := trunc(current_date) + starting_hour / 24;
+                        closing_hour_date := trunc(current_date) + closing_hour / 24;
+
+                        hour_counter := 0;
+                        WHILE current_hour < closing_hour_date
+                            LOOP
+                                EXIT WHEN current_hour >= closing_hour_date;
+
+                                IF NOT IsTimeAllowed(station, current_hour) THEN
+                                    hour_counter := 0;
+                                    current_hour := current_hour + 1 / 24;
+                                    continue;
+                                end if;
+
+                                hour_counter := hour_counter + 1;
+                                current_hour := current_hour + 1 / 24;
+
+                                if hour_counter = ceil(needed_time) then
+                                    return SERVICE_TYPE(SERVICE_SEQUENCE.nextval, tasks, employee_ref,
+                                                        owner_ref, car_ref, station,
+                                                        current_hour - hour_counter / 24, current_hour);
+                                end if;
+                            END LOOP;
+                    END LOOP;
+                current_date := current_date + 1;
+            END LOOP;
+        RAISE_APPLICATION_ERROR(-20002, 'No available date');
+    end FindPositionAndDate;
 
     FUNCTION IsTimeAllowed(position_number NUMBER, v_hour DATE) RETURN BOOLEAN IS
         counter number;
@@ -640,7 +762,8 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
 
         FOR i IN 1..all_stations
             LOOP
-                DBMS_OUTPUT.PUT_LINE('-----------------------------' || 'Station ' || i || '-----------------------------');
+                DBMS_OUTPUT.PUT_LINE('-----------------------------' || 'Station ' || i ||
+                                     '-----------------------------');
 
                 OPEN service_cursor(i);
 
@@ -770,6 +893,9 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         owner_ref := OWNERPACKAGE.GETOWNERREFBYPHONE(owner_phone);
         tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
 
+        --         FindPositionAndDate(TO_DATE('2024-02-02 08:00:00', 'YYYY-MM-DD HH24:MI:SS'), 5, tasks_list, 2, start_hour,
+--                             end_hour, 5.5);
+
         select SERVICE_SEQUENCE.nextval into next_id from dual;
         service := SERVICE_TYPE(next_id, tasks_list, employee_ref, owner_ref, car_ref, position_number, service_date,
                                 service_date);
@@ -812,7 +938,7 @@ VALUES (Task_type(1, 'Oil Change', 150.0, 1.5));
 /
 
 INSERT INTO TasksTable
-VALUES (Task_type(2, 'Engine Repair', 1200.0, 10.5));
+VALUES (Task_type(2, 'Engine Repair', 1200.0, 9.5));
 /
 
 INSERT INTO TasksTable
