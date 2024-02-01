@@ -1,24 +1,26 @@
 CREATE SEQUENCE Car_sequence START WITH 1 INCREMENT BY 1;
 
-CREATE or replace TYPE Car_type force AS OBJECT (
-    CarID NUMBER,
-    Brand VARCHAR2(50),
-    Model VARCHAR2(50),
-    Year_of_production NUMBER,
+CREATE or replace TYPE Car_type force AS OBJECT
+(
+    CarID               NUMBER,
+    Brand               VARCHAR2(50),
+    Model               VARCHAR2(50),
+    Year_of_production  NUMBER,
     Registration_number VARCHAR2(15),
-    Mileage NUMBER,
-    VIN VARCHAR2(20)
+    Mileage             NUMBER,
+    VIN                 VARCHAR2(20)
 );
 
 CREATE SEQUENCE Employee_sequence START WITH 1 INCREMENT BY 1;
 
-CREATE OR REPLACE TYPE Employee_type AS OBJECT (
-    EmployeeID NUMBER,
-    First_name VARCHAR2(100),
-    Last_name VARCHAR2(100),
-    Salary NUMBER,
+CREATE OR REPLACE TYPE Employee_type AS OBJECT
+(
+    EmployeeID          NUMBER,
+    First_name          VARCHAR2(100),
+    Last_name           VARCHAR2(100),
+    Salary              NUMBER,
     Professional_degree VARCHAR2(50),
-    Employment_date DATE,
+    Employment_date     DATE,
     CONSTRUCTOR FUNCTION Employee_type RETURN SELF AS RESULT
 ) NOT FINAL;
 
@@ -30,97 +32,134 @@ CREATE OR REPLACE TYPE BODY Employee_type AS
     END;
 END;
 
-CREATE or replace TYPE Owner_type force AS OBJECT (
+CREATE or replace TYPE Owner_type force AS OBJECT
+(
     OwnerID NUMBER,
-    Name VARCHAR2(100),
+    Name    VARCHAR2(100),
     Surname VARCHAR2(100),
-    Phone VARCHAR2(15)
+    Phone   VARCHAR2(15)
 );
 
 CREATE or replace TYPE TasksArray_type force AS VARRAY(10) OF TASK_TYPE;
 
-CREATE or replace TYPE Task_type force AS OBJECT (
-    TaskID NUMBER,
-    Name Varchar2(100),
-    Price NUMBER,
+CREATE or replace TYPE Task_type force AS OBJECT
+(
+    TaskID        NUMBER,
+    Name          Varchar2(100),
+    Price         NUMBER,
     Time_in_hours NUMBER
 );
 /
 
-CREATE or replace TYPE Workshop force AS OBJECT (
-    opening_hour NUMBER,
-    closing_hour NUMBER,
+CREATE or replace TYPE Workshop force AS OBJECT
+(
+    opening_hour       NUMBER,
+    closing_hour       NUMBER,
     number_of_stations NUMBER
 );
 /
 
 CREATE SEQUENCE SERVICE_SEQUENCE START WITH 1 INCREMENT BY 1;
 
-CREATE or replace TYPE Service_type force AS OBJECT (
+CREATE or replace TYPE Service_type force AS OBJECT
+(
     ServiceID NUMBER,
-    tasks TasksArray_type,
-    employee REF EMPLOYEE_TYPE,
-    owner REF OWNER_TYPE,
-    car REF CAR_TYPE,
-    position NUMBER,
-    hour DATE,
-    endTime DATE,
+    tasks     TasksArray_type,
+    employee  REF EMPLOYEE_TYPE,
+    owner     REF OWNER_TYPE,
+    car       REF CAR_TYPE,
+    position  NUMBER,
+    hour      DATE,
+    endTime   DATE,
 
-    MEMBER FUNCTION displayTimeInHours RETURN NUMBER
+    MEMBER FUNCTION displayTimeInHours RETURN NUMBER,
+    MEMBER FUNCTION calculateCost RETURN NUMBER
 );
+/
 
 CREATE OR REPLACE TYPE BODY Service_type AS
     MEMBER FUNCTION displayTimeInHours RETURN NUMBER IS
         v_result Number := 0;
-        v_task TASK_TYPE;
+        v_task   TASK_TYPE;
     BEGIN
-        FOR i IN 1..self.tasks.COUNT LOOP
-            v_task := self.TASKS(i);
-            v_result := v_result + v_task.TIME_IN_HOURS;
-        END LOOP;
+        FOR i IN 1..self.tasks.COUNT
+            LOOP
+                v_task := self.TASKS(i);
+                v_result := v_result + v_task.TIME_IN_HOURS;
+            END LOOP;
 
         RETURN v_result;
     END displayTimeInHours;
+
+    MEMBER FUNCTION calculateCost RETURN NUMBER IS
+        v_cost NUMBER := 0;
+        v_task TASK_TYPE;
+    BEGIN
+        FOR i IN 1..self.tasks.COUNT
+            LOOP
+                v_task := self.TASKS(i);
+                v_cost := v_cost + v_task.PRICE;
+            END LOOP;
+
+        RETURN v_cost;
+    END calculateCost;
 END;
 /
 
 CREATE TABLE WorkshopTable OF Workshop;
 /
 
-CREATE TABLE TasksTable OF Task_type (PRIMARY KEY (TaskID));
+CREATE TABLE TasksTable OF Task_type
+(
+    PRIMARY KEY (TaskID)
+);
 /
 
-CREATE TABLE EmployeesTable  OF Employee_type (PRIMARY KEY (EmployeeID));
+CREATE TABLE EmployeesTable OF Employee_type
+(
+    PRIMARY KEY (EmployeeID)
+);
 /
 
-CREATE TABLE ClientTable OF Owner_type (PRIMARY KEY (OwnerID));
+CREATE TABLE ClientTable OF Owner_type
+(
+    PRIMARY KEY (OwnerID)
+);
 /
 
-CREATE TABLE CarTable OF Car_type (PRIMARY KEY (CarID));
+CREATE TABLE CarTable OF Car_type
+(
+    PRIMARY KEY (CarID)
+);
 /
 
-CREATE TABLE ServiceTable OF Service_type (PRIMARY KEY (ServiceID));
+CREATE TABLE ServiceTable OF Service_type
+(
+    PRIMARY KEY (ServiceID)
+);
 /
 
 CREATE OR REPLACE TRIGGER check_vin
-    BEFORE INSERT ON CARTABLE
+    BEFORE INSERT
+    ON CARTABLE
     FOR EACH ROW
-    DECLARE
-        car_exists EXCEPTION;
-        vin_exists NUMBER;
-    BEGIN
-        SELECT COUNT (*) INTO vin_exists FROM CarTable WHERE VIN = :NEW.VIN;
-        IF vin_exists > 0 THEN
-            RAISE car_exists;
-        END IF;
-    EXCEPTION
-        WHEN car_exists THEN
-            RAISE_APPLICATION_ERROR(-20004, 'Current car is already in base.');
-    END;
+DECLARE
+    car_exists EXCEPTION;
+    vin_exists NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO vin_exists FROM CarTable WHERE VIN = :NEW.VIN;
+    IF vin_exists > 0 THEN
+        RAISE car_exists;
+    END IF;
+EXCEPTION
+    WHEN car_exists THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Current car is already in base.');
+END;
 
 CREATE OR REPLACE TRIGGER CheckServiceReservation
-BEFORE INSERT ON SERVICETABLE
-FOR EACH ROW
+    BEFORE INSERT
+    ON SERVICETABLE
+    FOR EACH ROW
 DECLARE
     car_count NUMBER;
 BEGIN
@@ -246,22 +285,23 @@ END EmployeesPackage;
 CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
 
     PROCEDURE ShowEmployeesList IS
-        employee_count NUMBER;
-        emp_cursor SYS_REFCURSOR;
-        EmployeeID EmployeesTable.EmployeeID%TYPE;
-        First_name EmployeesTable.First_name%TYPE;
-        Last_name EmployeesTable.Last_name%TYPE;
-        Salary EmployeesTable.Salary%TYPE;
+        employee_count      NUMBER;
+        emp_cursor          SYS_REFCURSOR;
+        EmployeeID          EmployeesTable.EmployeeID%TYPE;
+        First_name          EmployeesTable.First_name%TYPE;
+        Last_name           EmployeesTable.Last_name%TYPE;
+        Salary              EmployeesTable.Salary%TYPE;
         Professional_degree EmployeesTable.Professional_degree%TYPE;
-        Employment_date EmployeesTable.Employment_date%TYPE;
+        Employment_date     EmployeesTable.Employment_date%TYPE;
     BEGIN
-        SELECT COUNT (*) INTO employee_count FROM EmployeesTable;
+        SELECT COUNT(*) INTO employee_count FROM EmployeesTable;
 
         IF employee_count = 0 THEN
             DBMS_OUTPUT.PUT_LINE('No employees founded.');
         ELSE
             OPEN emp_cursor FOR
-                SELECT EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date FROM EmployeesTable;
+                SELECT EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date
+                FROM EmployeesTable;
 
             LOOP
                 FETCH emp_cursor INTO EmployeeID, First_name, Last_name, Salary, Professional_degree, Employment_date;
@@ -295,9 +335,12 @@ CREATE OR REPLACE PACKAGE BODY EmployeesPackage AS
             RAISE invalid_data_exception;
         ELSE
             SELECT Employee_sequence.NEXTVAL INTO next_id FROM dual;
-            INSERT INTO EmployeesTable VALUES (Employee_type(next_id, p_first_name, p_last_name, p_salary, p_professional_degree, p_employment_date));
+            INSERT INTO EmployeesTable
+            VALUES (Employee_type(next_id, p_first_name, p_last_name, p_salary, p_professional_degree,
+                                  p_employment_date));
             COMMIT;
-            DBMS_OUTPUT.PUT_LINE('Added employee ' || p_first_name || ' ' || p_last_name || ' with ID ' || next_id || '.');
+            DBMS_OUTPUT.PUT_LINE('Added employee ' || p_first_name || ' ' || p_last_name || ' with ID ' || next_id ||
+                                 '.');
         END IF;
     EXCEPTION
         WHEN invalid_data_exception THEN
@@ -331,16 +374,19 @@ END OwnerPackage;
 
 CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
     PROCEDURE ShowAllOwners IS
-        CURSOR c IS SELECT OwnerID, Name, Surname, Phone FROM ClientTable;
+        CURSOR c IS SELECT OwnerID, Name, Surname, Phone
+                    FROM ClientTable;
         cnt NUMBER;
     Begin
-         SELECT COUNT(*) INTO cnt FROM ClientTable;
+        SELECT COUNT(*) INTO cnt FROM ClientTable;
         IF cnt = 0 THEN
             dbms_output.put_line('No clients founded');
         ELSE
-            FOR r IN (SELECT DISTINCT OwnerID, Name, Surname, Phone FROM ClientTable) LOOP
-                dbms_output.put_line('OwnerID: ' || r.OwnerID || ', Name: ' || r.Name || ', Surname: ' || r.Surname || ', Phone: ' || r.Phone);
-            END LOOP;
+            FOR r IN (SELECT DISTINCT OwnerID, Name, Surname, Phone FROM ClientTable)
+                LOOP
+                    dbms_output.put_line('OwnerID: ' || r.OwnerID || ', Name: ' || r.Name || ', Surname: ' ||
+                                         r.Surname || ', Phone: ' || r.Phone);
+                END LOOP;
         END IF;
     end ShowAllOwners;
 
@@ -351,9 +397,11 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
         IF cnt = 0 THEN
             dbms_output.put_line('No clients founded');
         ELSE
-            FOR r IN (SELECT DISTINCT OwnerID, Name, Surname, Phone FROM ClientTable WHERE Phone = phone_number) LOOP
-                dbms_output.put_line('OwnerID: ' || r.OwnerID || ', Name: ' || r.Name || ', Surname: ' || r.Surname || ', Phone: ' || r.Phone);
-            END LOOP;
+            FOR r IN (SELECT DISTINCT OwnerID, Name, Surname, Phone FROM ClientTable WHERE Phone = phone_number)
+                LOOP
+                    dbms_output.put_line('OwnerID: ' || r.OwnerID || ', Name: ' || r.Name || ', Surname: ' ||
+                                         r.Surname || ', Phone: ' || r.Phone);
+                END LOOP;
         END IF;
     END ShowOwnerByPhone;
 
@@ -362,7 +410,7 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
         p_surname VARCHAR2,
         p_phone VARCHAR2
     ) IS
-        next_id NUMBER;
+        next_id      NUMBER;
         phone_exists NUMBER;
         phone_exception EXCEPTION;
     Begin
@@ -374,20 +422,21 @@ CREATE OR REPLACE PACKAGE BODY OwnerPackage AS
         next_id := next_id + 1;
         INSERT INTO CLIENTTABLE VALUES (OWNER_TYPE(next_id, p_name, p_surname, p_phone));
         COMMIT;
-        DBMS_OUTPUT.PUT_LINE('Added new client ' || p_name || ' ' || p_surname || ' tel. ' || p_phone || ' with ID ' || next_id || '.');
+        DBMS_OUTPUT.PUT_LINE('Added new client ' || p_name || ' ' || p_surname || ' tel. ' || p_phone || ' with ID ' ||
+                             next_id || '.');
     EXCEPTION
         WHEN phone_exception THEN
             RAISE_APPLICATION_ERROR(-20001, 'Client with this phone number already exists');
     end AddOwner;
 
     FUNCTION GetOwnerRefByPhone(phone_number IN VARCHAR2) RETURN REF OWNER_TYPE AS
-      client_ref REF OWNER_TYPE;
+        client_ref REF OWNER_TYPE;
     BEGIN
-      SELECT REF(c) INTO client_ref FROM ClientTable c WHERE c.Phone = phone_number;
-      RETURN client_ref;
+        SELECT REF(c) INTO client_ref FROM ClientTable c WHERE c.Phone = phone_number;
+        RETURN client_ref;
     EXCEPTION
-      WHEN NO_DATA_FOUND THEN
-        RETURN NULL;
+        WHEN NO_DATA_FOUND THEN
+            RETURN NULL;
     END GetOwnerRefByPhone;
 
 END OwnerPackage;
@@ -396,7 +445,7 @@ END OwnerPackage;
 
 CREATE OR REPLACE PACKAGE TasksPackage AS
     PROCEDURE ShowTasks;
-    FUNCTION createTasksArray (p_ids SYS.ODCINUMBERLIST) RETURN TasksArray_type;
+    FUNCTION createTasksArray(p_ids SYS.ODCINUMBERLIST) RETURN TasksArray_type;
 END TasksPackage;
 
 CREATE OR REPLACE PACKAGE BODY TasksPackage AS
@@ -405,30 +454,35 @@ CREATE OR REPLACE PACKAGE BODY TasksPackage AS
     BEGIN
         DBMS_OUTPUT.PUT_LINE('Available tasks');
 
-        FOR r IN (SELECT TaskID, Name, Price, Time_in_hours FROM TASKSTABLE) LOOP
-            DBMS_OUTPUT.PUT_LINE('TaskID: ' || r.TaskID);
-            DBMS_OUTPUT.PUT_LINE('Name: ' || r.Name);
-            DBMS_OUTPUT.PUT_LINE('Price: ' || r.Price);
-            DBMS_OUTPUT.PUT_LINE('Time in hours: ' || r.Time_in_hours);
-            DBMS_OUTPUT.PUT_LINE('---------------------');
-        END LOOP;
+        FOR r IN (SELECT TaskID, Name, Price, Time_in_hours FROM TASKSTABLE)
+            LOOP
+                DBMS_OUTPUT.PUT_LINE('TaskID: ' || r.TaskID);
+                DBMS_OUTPUT.PUT_LINE('Name: ' || r.Name);
+                DBMS_OUTPUT.PUT_LINE('Price: ' || r.Price);
+                DBMS_OUTPUT.PUT_LINE('Time in hours: ' || r.Time_in_hours);
+                DBMS_OUTPUT.PUT_LINE('---------------------');
+            END LOOP;
 
     END ShowTasks;
 
-    FUNCTION createTasksArray (p_ids SYS.ODCINUMBERLIST) RETURN TasksArray_type AS
-        tasks TasksArray_type := TasksArray_type();
-        task TASK_TYPE;
-        task_id NUMBER;
-        task_name VARCHAR2(100);
+    FUNCTION createTasksArray(p_ids SYS.ODCINUMBERLIST) RETURN TasksArray_type AS
+        tasks      TasksArray_type := TasksArray_type();
+        task       TASK_TYPE;
+        task_id    NUMBER;
+        task_name  VARCHAR2(100);
         task_price NUMBER;
-        task_time NUMBER;
+        task_time  NUMBER;
     BEGIN
         tasks.EXTEND(p_ids.count);
-        for i in 1 .. p_ids.count loop
-            SELECT TASKID, NAME, PRICE, TIME_IN_HOURS  INTO task_id, task_name, task_price, task_time FROM taskstable WHERE TASKID = p_ids(i);
-            task := TASK_TYPE(task_id, task_name, task_price, task_time);
-            tasks(i) := task;
-        end loop;
+        for i in 1 .. p_ids.count
+            loop
+                SELECT TASKID, NAME, PRICE, TIME_IN_HOURS
+                INTO task_id, task_name, task_price, task_time
+                FROM taskstable
+                WHERE TASKID = p_ids(i);
+                task := TASK_TYPE(task_id, task_name, task_price, task_time);
+                tasks(i) := task;
+            end loop;
         IF tasks.count = 0 THEN
             RAISE NO_DATA_FOUND;
         END IF;
@@ -728,4 +782,38 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
 END ServicePackage;
 /
 
-drop table servicetable;
+INSERT INTO TasksTable
+VALUES (Task_type(1, 'Oil Change', 150.0, 1.5));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(2, 'Engine Repair', 1200.0, 10.5));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(3, 'Tire Replacement', 200.0, 2.5));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(4, 'Brake Inspection', 100.0, 0.5));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(5, 'Battery Replacement', 180.0, 1.0));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(6, 'Air Filter Change', 80.0, 0.5));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(7, 'Coolant Flush', 120.0, 1.5));
+/
+
+INSERT INTO TasksTable
+VALUES (Task_type(8, 'Transmission Flush', 300.0, 3.5));
+/
+
+INSERT INTO WORKSHOPTABLE
+VALUES (Workshop(8, 18, 2));
+/
