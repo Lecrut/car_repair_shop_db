@@ -36,30 +36,39 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             SELECT *
             FROM SERVICETABLE
             ORDER BY HOUR;
-        service_record service_cursor%ROWTYPE;
-        service        SERVICE_TYPE;
-        record_found   BOOLEAN;
-        emp_ref        REF EMPLOYEE_TYPE;
-        emp            EMPLOYEE_TYPE;
-        car_ref        REF CAR_TYPE;
-        car            CAR_TYPE;
-        owner_ref      REF OWNER_TYPE;
-        owner          OWNER_TYPE;
-        task           TASK_TYPE;
-        task_str       VARCHAR(1000) := ' ';
+        service_record    service_cursor%ROWTYPE;
+        service           SERVICE_TYPE;
+        record_found      BOOLEAN;
+        emp_ref           REF EMPLOYEE_TYPE;
+        emp               EMPLOYEE_TYPE;
+        car_ref           REF CAR_TYPE;
+        car               CAR_TYPE;
+        current_owner_ref REF OWNER_TYPE;
+        current_owner     OWNER_TYPE;
+        task              TASK_TYPE;
+        task_str          VARCHAR(1000) := ' ';
+        cost              NUMBER;
+        owner             OWNER_TYPE    := OWNER_TYPE(NULL, NULL, NULL, NULL);
+
     BEGIN
+        SELECT OWNERID, NAME, SURNAME, PHONE
+        INTO owner.OWNERID, owner.NAME, owner.SURNAME, owner.PHONE
+        FROM CLIENTTABLE
+        WHERE phoneNumber = PHONE;
+
         OPEN service_cursor;
-        dbms_output.put_line('History for owner: ' || owner.NAME || ' ' || owner.SURNAME || ', phone number: ' ||
+        dbms_output.put_line('History for owner: ' || owner.NAME || ' ' || owner.SURNAME ||
+                             ', phone number: ' ||
                              owner.PHONE);
 
         LOOP
             FETCH service_cursor INTO service_record;
             EXIT WHEN service_cursor%NOTFOUND;
 
-            owner_ref := service_record.OWNER;
-            SELECT DEREF(owner_ref) INTO owner FROM dual;
+            current_owner_ref := service_record.OWNER;
+            SELECT DEREF(current_owner_ref) INTO current_owner FROM dual;
 
-            IF owner.PHONE <> phoneNumber THEN
+            IF current_owner.PHONE <> phoneNumber THEN
                 continue;
             END IF;
 
@@ -68,16 +77,14 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             car_ref := service_record.CAR;
             SELECT DEREF(car_ref) INTO car FROM dual;
 
-            owner_ref := service_record.OWNER;
-            SELECT DEREF(owner_ref) INTO owner FROM dual;
-
-
             emp_ref := service_record.EMPLOYEE;
             SELECT DEREF(emp_ref) INTO emp FROM dual;
 
             service := SERVICE_TYPE(service_record.ServiceID, service_record.tasks, service_record.employee,
                                     service_record.owner, service_record.car, service_record.position,
                                     service_record.hour, service_record.ENDTIME);
+
+            cost := service.calculateCost();
 
 
             FOR i IN 1..service_record.tasks.COUNT
@@ -90,6 +97,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             dbms_output.put_line('----------------------');
             dbms_output.put_line('Date: ' || TO_CHAR(service_record.hour, 'DD-MM-YYYY HH24:MI'));
             dbms_output.put_line('Tasks:' || task_str || ' | ');
+            dbms_output.put_line('Cost: ' || cost || ' PLN');
             dbms_output.put_line('Employee: ' || emp.First_name || ' ' || emp.Last_name || ', ' ||
                                  emp.Professional_degree);
 
@@ -104,6 +112,9 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         IF NOT record_found THEN
             dbms_output.put_line('No history for this owner.');
         END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            dbms_output.put_line('No client with this phone number.');
     END PrintClientHistory;
 
     PROCEDURE PrintServiceDataByDate(service_date DATE) IS
@@ -124,6 +135,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         task           TASK_TYPE;
         task_str       VARCHAR(1000) := ' ';
         needed_time    NUMBER;
+        cost           NUMBER;
     BEGIN
         OPEN service_cursor;
 
@@ -145,7 +157,9 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             service := SERVICE_TYPE(service_record.ServiceID, service_record.tasks, service_record.employee,
                                     service_record.owner, service_record.car, service_record.position,
                                     service_record.hour, service_record.ENDTIME);
+
             needed_time := service.displayTimeInHours();
+            cost := service.calculateCost();
 
 
             FOR i IN 1..service_record.tasks.COUNT
@@ -157,6 +171,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             dbms_output.put_line('ServiceID: ' || service_record.ServiceID);
             dbms_output.put_line('Tasks number: ' || service_record.tasks.COUNT);
             dbms_output.put_line('Tasks:' || task_str || ' | ');
+            dbms_output.put_line('Cost: ' || cost || ' PLN');
             dbms_output.put_line('Needed hours: ' || needed_time);
 
             dbms_output.put_line('Employee: ' || emp.First_name || ' ' || emp.Last_name || ', ' ||
