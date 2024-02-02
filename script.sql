@@ -528,6 +528,7 @@ CREATE OR REPLACE PACKAGE ServicePackage AS
     )
         RETURN SERVICE_TYPE;
     FUNCTION calculateTimeOfTasksInHours(tasks TASKSARRAY_TYPE) RETURN NUMBER;
+    PROCEDURE printNearestDate(tasks_ids SYS.ODCINUMBERLIST);
 END ServicePackage;
 /
 
@@ -545,6 +546,30 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
 
         RETURN v_result;
     END calculateTimeOfTasksInHours;
+
+    PROCEDURE printNearestDate(
+        tasks_ids SYS.ODCINUMBERLIST
+    ) IS
+        tasks_list   TASKSARRAY_TYPE;
+        new_service  SERVICE_TYPE;
+        start_hour   NUMBER;
+        end_hour     NUMBER;
+        stations     NUMBER;
+    Begin
+        select opening_hour into start_hour from WORKSHOPTABLE;
+        select closing_hour into end_hour from WORKSHOPTABLE;
+        select number_of_stations into stations from WORKSHOPTABLE;
+
+        tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
+
+        new_service := FindPositionAndDate(SYSDATE+1, 5, tasks_list, stations, start_hour,
+                                           end_hour, calculateTimeOfTasksInHours(tasks_list), null, null,
+                                           null);
+         DBMS_OUTPUT.PUT_LINE('Founded available service date: station ' || new_service.POSITION || ' ,start hour: ' ||
+                             to_char(new_service.HOUR, 'YYYY-MM-DD HH24') ||
+                             ', end hour: ' || to_char(new_service.ENDTIME, 'YYYY-MM-DD HH24') || ' for ' || new_service.CALCULATECOST() || ' PLN ');
+
+    end printNearestDate;
 
     PROCEDURE AddServiceForNearestDate(
         car_vin VARCHAR2,
@@ -588,7 +613,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
 
         tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
 
-        new_service := FindPositionAndDate(SYSDATE, 5, tasks_list, stations, start_hour,
+        new_service := FindPositionAndDate(SYSDATE+1, 5, tasks_list, stations, start_hour,
                                            end_hour, calculateTimeOfTasksInHours(tasks_list), employee_ref, owner_ref,
                                            car_ref);
 
@@ -596,6 +621,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
                              to_char(new_service.HOUR, 'YYYY-MM-DD HH24') ||
                              ', end hour: ' || to_char(new_service.ENDTIME, 'YYYY-MM-DD HH24'));
         insert into SERVICETABLE VALUES (new_service);
+        DBMS_OUTPUT.PUT_LINE('Service booked.');
 
     EXCEPTION
         WHEN no_car_exception THEN
@@ -937,9 +963,6 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         END IF;
 
         tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
-
-        --         FindPositionAndDate(TO_DATE('2024-02-02 08:00:00', 'YYYY-MM-DD HH24:MI:SS'), 5, tasks_list, 2, start_hour,
---                             end_hour, 5.5);
 
         select SERVICE_SEQUENCE.nextval into next_id from dual;
         service := SERVICE_TYPE(next_id, tasks_list, employee_ref, owner_ref, car_ref, position_number, service_date,
