@@ -560,14 +560,32 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         owner_ref    REF OWNER_TYPE;
         tasks_list   TASKSARRAY_TYPE;
         new_service  SERVICE_TYPE;
+        no_car_exception EXCEPTION;
+        no_employee EXCEPTION;
+        wrong_owner_phone_exception EXCEPTION;
     BEGIN
         select opening_hour into start_hour from WORKSHOPTABLE;
         select closing_hour into end_hour from WORKSHOPTABLE;
         select number_of_stations into stations from WORKSHOPTABLE;
 
         car_ref := CARPACKAGE.GETCARREFBYVIN(car_vin);
+
+        IF car_ref IS NULL THEN
+            RAISE no_car_exception;
+        END IF;
+
         employee_ref := EMPLOYEESPACKAGE.GETEMPLOYEEREFBYID(employee_id);
+
+        IF employee_ref IS NULL THEN
+            RAISE no_employee;
+        end if;
+
         owner_ref := OWNERPACKAGE.GETOWNERREFBYPHONE(owner_phone);
+
+        IF owner_ref IS NULL THEN
+            RAISE wrong_owner_phone_exception;
+        END IF;
+
         tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
 
         new_service := FindPositionAndDate(SYSDATE, 5, tasks_list, stations, start_hour,
@@ -579,7 +597,16 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
                              ', end hour: ' || to_char(new_service.ENDTIME, 'YYYY-MM-DD HH24'));
         insert into SERVICETABLE VALUES (new_service);
 
+    EXCEPTION
+        WHEN no_car_exception THEN
+            raise_application_error(-20006, 'This car does not exist.');
+        WHEN no_employee THEN
+            raise_application_error(-20007, 'EmployeeID does not exist.');
+        WHEN wrong_owner_phone_exception THEN
+            raise_application_error(-20008, 'Wrong client phone number.');
+
     END AddServiceForNearestDate;
+
 
     FUNCTION FindPositionAndDate(
         from_date Date,
@@ -860,7 +887,7 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             RAISE_APPLICATION_ERROR(-20002, 'Invalid date');
     END PrintFreeHours;
 
-    PROCEDURE AddService(
+   PROCEDURE AddService(
         car_vin VARCHAR2,
         employee_id NUMBER,
         owner_phone VARCHAR2,
@@ -880,6 +907,9 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         v_duration NUMBER;
         temp_date  DATE;
         invalid_time_exception EXCEPTION;
+        no_car_exception EXCEPTION;
+        no_employee EXCEPTION;
+        wrong_owner_phone_exception EXCEPTION;
     BEGIN
         IF service_date < SYSDATE THEN
             RAISE invalid_data_exception;
@@ -889,8 +919,23 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
         select CLOSING_HOUR into end_hour from WORKSHOPTABLE;
 
         car_ref := CARPACKAGE.GETCARREFBYVIN(car_vin);
+
+        IF car_ref IS NULL THEN
+            RAISE no_car_exception;
+        END IF;
+
         employee_ref := EMPLOYEESPACKAGE.GETEMPLOYEEREFBYID(employee_id);
+
+        IF employee_ref IS NULL THEN
+            RAISE no_employee;
+        end if;
+
         owner_ref := OWNERPACKAGE.GETOWNERREFBYPHONE(owner_phone);
+
+        IF owner_ref IS NULL THEN
+            RAISE wrong_owner_phone_exception;
+        END IF;
+
         tasks_list := TASKSPACKAGE.CREATETASKSARRAY(tasks_ids);
 
         --         FindPositionAndDate(TO_DATE('2024-02-02 08:00:00', 'YYYY-MM-DD HH24:MI:SS'), 5, tasks_list, 2, start_hour,
@@ -928,6 +973,12 @@ CREATE OR REPLACE PACKAGE BODY ServicePackage AS
             RAISE_APPLICATION_ERROR(-20002, 'Invalid repair date.');
         WHEN invalid_time_exception THEN
             raise_application_error(-20005, 'The position is already taken.');
+        WHEN no_car_exception THEN
+            raise_application_error(-20006, 'This car does not exist.');
+        WHEN no_employee THEN
+            raise_application_error(-20007, 'EmployeeID does not exist.');
+        WHEN wrong_owner_phone_exception THEN
+            raise_application_error(-20008, 'Wrong client phone number.');
     END AddService;
 
 END ServicePackage;
